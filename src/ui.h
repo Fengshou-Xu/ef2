@@ -111,7 +111,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             break;
         case IDC_MAIN_LINK:
             /* 自定义控件 */
-            ShellExecute(NULL, TEXT("open"), TEXT("https://github.com/MotooriKashin/ef2"), NULL, NULL, SW_SHOWMAXIMIZED);
+            ShellExecute(NULL, TEXT("open"), EF2_HOMEPAGE, NULL, NULL, SW_SHOWMAXIMIZED);
             break;
         default:
             return DefWindowProc(hwnd, msg, wParam, lParam);

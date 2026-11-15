@@ -13,13 +13,13 @@ BEGIN
   BEGIN
     BLOCK "080404B0"
     BEGIN
-      VALUE "CompanyName", "Motoori Kashin"
-      VALUE "FileDescription", "IDM EF2辅助工具"
+      VALUE "CompanyName", "Fengshou-Xu (fork of MotooriKashin/ef2)"
+      VALUE "FileDescription", "IDM EF2辅助工具（修改版）"
       VALUE "FileVersion", "1.1.0"
       VALUE "InternalName", "ef2.exe"
-      VALUE "LegalCopyright", "Licensed under the MIT License."
+      VALUE "LegalCopyright", "MIT License. Original work (c) 2021 MotooriKashin."
       VALUE "OriginalFilename", "ef2.exe"
-      VALUE "ProductName", "IDM EF2 Helper"
+      VALUE "ProductName", "IDM EF2 Helper (Fengshou-Xu fork)"
       VALUE "ProductVersion", "1.1.0"
     END
   END

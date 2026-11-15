@@ -1,10 +1,22 @@
 [Internet Download Manager (IDM)](http://www.internetdownloadmanager.com/)下载辅助工具，允许主动拉起IDM进行下载，并配置referer、User-Agent等信息。
 
+> **这是 [MotooriKashin/ef2](https://github.com/MotooriKashin/ef2) 的修改版（fork）。** 感谢原作者 MotooriKashin 的全部原始工作，本仓库在其基础上修改，沿用 MIT 协议。
+>
+> 与原版相比的主要变化（1.1.0）：
+> - 双击ef2文件会在旁边新建同名目录，所有任务自动开始下载到该目录，不再需要到IDM里手动开启队列；
+> - 目录里已有的文件自动跳过；任务过多时先询问，条数可以在程序窗口里设置；
+> - 修复：User-Agent没有传给IDM、路径或标题含emoji等字符时打不开文件、链接或文件名里碰巧出现关键词时解析出错。
+>
+> 本修改版的问题请反馈到[这里](https://github.com/Fengshou-Xu/ef2/issues)，请不要因此打扰原作者。
+
 ---
 ### 安装/卸载
 绿色命令行程序，只需要写入注册表关联：  
-1. 下载[ef2.exe](https://github.com/MotooriKashin/ef2/releases/latest)到任意目录。
+1. 从本仓库的[Releases](https://github.com/Fengshou-Xu/ef2/releases)下载ef2.exe到任意目录，或者自行编译（见下文「编译相关」）。
 2. 双击打开ef2.exe，点击安装按钮即可。  
+
+*ef2.exe没有数字签名，首次运行时Windows SmartScreen或杀毒软件可能会拦截提示，属于正常现象；不放心可以对照源码自行编译。*  
+*已经装过原版的话，直接用本版的ef2.exe覆盖原来的文件即可，不需要重新注册。*
 
 如果觉得不好用，需要卸载：  
 1. 双击打开ef2.exe，点击卸载按钮。

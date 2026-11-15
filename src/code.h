@@ -543,7 +543,7 @@ namespace ef2
         std::vector<Task> tasks = ParseEf2(DecodeText(bytes));
         if (tasks.empty())
         {
-            MessageBoxText(L"该ef2文件似乎并不包含有效下载链接！？\n请检查文件内容或者反馈到：https://github.com/MotooriKashin/ef2/issues", MB_ICONERROR);
+            MessageBoxText(L"该ef2文件似乎并不包含有效下载链接！？\n请检查文件内容或者反馈到：" EF2_HOMEPAGE L"/issues", MB_ICONERROR);
             return 1;
         }
 
@@ -681,7 +681,7 @@ namespace ef2
             task.url = L"https:" + task.url;
         if (task.url.empty())
         {
-            MessageBoxText(L"非法ef2链接！请查阅相关文档：https://github.com/MotooriKashin/ef2", MB_ICONERROR);
+            MessageBoxText(L"非法ef2链接！请查阅相关文档：" EF2_HOMEPAGE, MB_ICONERROR);
             return 1;
         }
         task.fileName = SafeFileName(task.fileName);

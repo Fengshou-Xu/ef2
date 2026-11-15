@@ -27,8 +27,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         hButton = CreateWindow(TEXT("button"), TEXT("安装"), WS_CHILD | WS_VISIBLE | BS_FLAT, 25, 47, 130, 30, hwnd, (HMENU)IDC_MAIN_BUTTON, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
         hCheckBox1 = CreateWindow(TEXT("static"), TEXT("※ 注册ef2协议关联"), WS_CHILD | WS_VISIBLE | SS_LEFT, 25, 84, 140, 15, hwnd, NULL, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
         hCheckBox2 = CreateWindow(TEXT("static"), TEXT("※ 注册ef2文件关联"), WS_CHILD | WS_VISIBLE | SS_LEFT, 25, 99, 140, 15, hwnd, NULL, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
-        hExit = CreateWindow(TEXT("button"), TEXT("退出"), WS_CHILD | WS_VISIBLE | BS_FLAT, 130, 125, 40, 20, hwnd, (HMENU)IDC_MAIN_EXIT, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
-        CreateWindow(TEXT("SuperLink"), TEXT("帮助"), WS_CHILD | WS_VISIBLE | DT_LEFT, 5, 125, 50, 20, hwnd, (HMENU)IDC_MAIN_LINK, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
+        hExit = CreateWindow(TEXT("button"), TEXT("退出"), WS_CHILD | WS_VISIBLE | BS_FLAT, 130, 205, 40, 20, hwnd, (HMENU)IDC_MAIN_EXIT, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
+        CreateWindow(TEXT("SuperLink"), TEXT("帮助"), WS_CHILD | WS_VISIBLE | DT_LEFT, 5, 205, 50, 20, hwnd, (HMENU)IDC_MAIN_LINK, (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE), NULL);
+
+        /* 批量下载设置：一个 ef2 文件里的任务超过多少条时先询问（保存在 ef2.ini 的 ask_above） */
+        {
+            HINSTANCE hInst = (HINSTANCE)GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
+            const std::wstring askAbove = std::to_wstring(ef2::Settings::Load().askAbove);
+            HWND hSetting[6];
+            hSetting[0] = CreateWindow(TEXT("BUTTON"), TEXT("批量下载"), WS_VISIBLE | WS_CHILD | BS_GROUPBOX, 5, 126, 170, 73, hwnd, NULL, hInst, NULL);
+            hSetting[1] = CreateWindow(TEXT("static"), TEXT("任务超过"), WS_CHILD | WS_VISIBLE | SS_LEFT, 15, 149, 52, 15, hwnd, NULL, hInst, NULL);
+            hSetting[2] = CreateWindowEx(WS_EX_CLIENTEDGE, TEXT("edit"), askAbove.c_str(), WS_CHILD | WS_VISIBLE | ES_NUMBER | ES_CENTER | ES_AUTOHSCROLL, 68, 145, 38, 21, hwnd, (HMENU)IDC_ASK_EDIT, hInst, NULL);
+            hSetting[3] = CreateWindow(TEXT("static"), TEXT("条时先询问"), WS_CHILD | WS_VISIBLE | SS_LEFT, 110, 149, 62, 15, hwnd, NULL, hInst, NULL);
+            hSetting[4] = CreateWindow(TEXT("static"), TEXT("0 = 从不询问"), WS_CHILD | WS_VISIBLE | SS_LEFT, 15, 176, 105, 15, hwnd, (HMENU)IDC_ASK_HINT, hInst, NULL);
+            hSetting[5] = CreateWindow(TEXT("button"), TEXT("保存"), WS_CHILD | WS_VISIBLE | BS_FLAT, 125, 171, 42, 22, hwnd, (HMENU)IDC_ASK_SAVE, hInst, NULL);
+            for (int i = 0; i < 6; i++)
+                SendMessage(hSetting[i], WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
+            SendMessage(hSetting[2], EM_SETLIMITTEXT, 4, 0);
+        }
         SendMessage(hButton, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
         SendMessage(hCheckBox1, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
         SendMessage(hCheckBox2, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
@@ -71,6 +87,24 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 MessageBox(hwnd, Register::ErrorMessage(), TEXT("注册失败！"), MB_ICONERROR);
             }
             break;
+        case IDC_ASK_SAVE:
+        {
+            /* 保存「超过多少条先询问」：留空恢复默认值，超出范围自动收拢 */
+            TCHAR text[16] = {0};
+            GetDlgItemText(hwnd, IDC_ASK_EDIT, text, 15);
+            const int value = text[0] ? ef2::Settings::ClampAskAbove(_ttoi(text)) : ef2::Settings::kDefaultAskAbove;
+            if (ef2::Settings::SaveAskAbove(value))
+            {
+                SetDlgItemInt(hwnd, IDC_ASK_EDIT, value, FALSE);
+                SetDlgItemText(hwnd, IDC_ASK_HINT, value ? TEXT("已保存") : TEXT("已保存：从不询问"));
+                SetTimer(hwnd, 2, 2000, (TIMERPROC)NULL);
+            }
+            else
+            {
+                MessageBox(hwnd, Register::ErrorMessage(), TEXT("保存失败！"), MB_ICONERROR);
+            }
+        }
+        break;
         case IDC_MAIN_EXIT:
             /* 按钮退出 */
             SendMessage(hwnd, WM_CLOSE, wParam, lParam);
@@ -100,7 +134,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
             return 0;
             break;
+        case 2:
+            /* 「已保存」提示显示两秒后恢复 */
+            KillTimer(hwnd, 2);
+            SetDlgItemText(hwnd, IDC_ASK_HINT, TEXT("0 = 从不询问"));
+            return 0;
         }
+        break; /* 不要落进下面的 WM_CLOSE */
     case WM_CLOSE:
         DestroyWindow(hwnd);
         break;
@@ -193,7 +233,7 @@ public:
             TEXT("ef2Class"),
             TEXT("EF2"),
             WS_OVERLAPPED | WS_SYSMENU | WS_MINIMIZEBOX,
-            CW_USEDEFAULT, CW_USEDEFAULT, 200, 193,
+            CW_USEDEFAULT, CW_USEDEFAULT, 200, 273,
             NULL, NULL, hInstance, NULL);
 
         if (hwnd == NULL)

@@ -49,13 +49,13 @@ public:
         char pvData[MAX_PATH] = {0};
         DWORD pcbData = sizeof(pvData);
         MSG Msg;
-        LSTATUS ret = RegGetValue(HKEY_LOCAL_MACHINE,
-                                  TEXT("SOFTWARE\\Google\\Chrome\\NativeMessagingHosts\\com.tonec.idm\\"),
-                                  TEXT(""),
-                                  RRF_RT_REG_SZ,
-                                  NULL,
-                                  (PVOID)&pvData,
-                                  &pcbData);
+        LSTATUS ret = RegGetValueA(HKEY_LOCAL_MACHINE,
+                                   "SOFTWARE\\Google\\Chrome\\NativeMessagingHosts\\com.tonec.idm\\",
+                                   "",
+                                   RRF_RT_REG_SZ,
+                                   NULL,
+                                   (PVOID)&pvData,
+                                   &pcbData);
         if (ret != ERROR_SUCCESS)
         {
             MessageBox(NULL, TEXT("未能读取到注册表中IDM的Native Messaging信息！"), NULL, MB_ICONWARNING);

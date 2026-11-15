@@ -35,7 +35,7 @@ public:
         startupInfo.hStdInput = stdinRead;
         startupInfo.hStdOutput = stdoutWrite;
         startupInfo.hStdError = GetStdHandle(STD_ERROR_HANDLE);
-        if (!CreateProcess(str.c_str(), nullptr, nullptr, nullptr, true, 0, nullptr, nullptr, &startupInfo, &processInformation))
+        if (!CreateProcessA(str.c_str(), nullptr, nullptr, nullptr, true, 0, nullptr, nullptr, &startupInfo, &processInformation))
         {
 
             std::cerr << "CreateProcess failed" << std::endl;
@@ -93,7 +93,7 @@ private:
     SECURITY_ATTRIBUTES securityAttribute;
     HANDLE stdinRead, stdinWrite;
     HANDLE stdoutRead, stdoutWrite;
-    STARTUPINFO startupInfo{};
+    STARTUPINFOA startupInfo{};
     PROCESS_INFORMATION processInformation;
     HANDLE jobHandle;
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limitInfo;

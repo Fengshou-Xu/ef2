@@ -1,8 +1,12 @@
 ﻿#include <string>
-#include <fstream>
 #include <vector>
 #include <Windows.h>
 #include <windowsx.h>
+#include <shellapi.h>
+#include <shlobj.h>
+#include <commctrl.h>
+#include <ole2.h>
+#include <tchar.h>
+#include <wchar.h>
 #include <iostream>
-#include <atlbase.h>
 #include "resource.h"

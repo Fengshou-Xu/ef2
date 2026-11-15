@@ -2,3 +2,6 @@
 #define IDC_MAIN_BUTTON 201
 #define IDC_MAIN_LINK 204
 #define IDC_MAIN_EXIT 205
+#define IDC_ASK_EDIT 206
+#define IDC_ASK_SAVE 207
+#define IDC_ASK_HINT 208

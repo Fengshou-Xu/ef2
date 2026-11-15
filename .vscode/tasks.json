@@ -24,10 +24,15 @@
 				"/Zi",
 				"/EHsc",
 				"/nologo",
+				"/utf-8",
+				"/DUNICODE",
+				"/D_UNICODE",
 				"/Fe:",
 				"${workspaceFolder}\\ef2.exe",
 				"${workspaceFolder}\\main.cpp",
-				"${workspaceFolder}\\src\\resource.res"
+				"${workspaceFolder}\\src\\resource.res",
+				"/link",
+				"/MANIFEST:NO"
 			],
 			"options": {
 				"cwd": "${fileDirname}"
@@ -48,12 +53,18 @@
 				"/GF",
 				"/O2",
 				"/EHsc",
+				"/MT",
+				"/utf-8",
+				"/DUNICODE",
+				"/D_UNICODE",
 				"/D",
 				"NDEBUG",
 				"/Fe:",
 				"${workspaceFolder}\\ef2.exe",
 				"${workspaceFolder}\\main.cpp",
-				"${workspaceFolder}\\src\\resource.res"
+				"${workspaceFolder}\\src\\resource.res",
+				"/link",
+				"/MANIFEST:NO"
 			],
 			"options": {
 				"cwd": "${fileDirname}"

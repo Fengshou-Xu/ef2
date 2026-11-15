@@ -6,30 +6,57 @@
 #include "src\ui.h"
 #include "src\websocket.h"
 
-#pragma comment(linker, "/SUBSYSTEM:windows \"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#pragma comment(linker, "/SUBSYSTEM:windows")
 #pragma comment(lib, "User32.lib")
 #pragma comment(lib, "Gdi32.lib")
-#pragma execution_character_set("utf-8")
+#pragma comment(lib, "Shell32.lib")
+#pragma comment(lib, "Advapi32.lib")
+#pragma comment(lib, "Ole32.lib")
+#pragma comment(lib, "OleAut32.lib")
+#pragma comment(lib, "Comctl32.lib")
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+static bool StartsWithNoCase(const std::wstring &s, const wchar_t *prefix)
 {
-  // 命令行调用
-  for (int i = 0; i < __argc; i++)
+  return _wcsnicmp(s.c_str(), prefix, wcslen(prefix)) == 0;
+}
+
+static bool EndsWithNoCase(const std::wstring &s, const wchar_t *suffix)
+{
+  const size_t len = wcslen(suffix);
+  return s.size() >= len && _wcsicmp(s.c_str() + s.size() - len, suffix) == 0;
+}
+
+/* 安装界面是固定像素布局，保持系统缩放；这里只让提示对话框在高分屏上不发虚（Win10 1607+） */
+static void UseCrispDialogs()
+{
+  typedef HANDLE(WINAPI * SetContext)(HANDLE);
+  SetContext set = (SetContext)GetProcAddress(GetModuleHandleW(L"user32.dll"), "SetThreadDpiAwarenessContext");
+  if (set)
+    set((HANDLE)-4); // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
+}
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow)
+{
+  // 命令行调用：用宽字符参数，路径里有系统代码页之外的字符（emoji、韩文等）也能打开
+  int argc = 0;
+  LPWSTR *argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  for (int i = 1; argv && i < argc; i++)
   {
-    if (strstr(__argv[i], "ef2://"))
+    const std::wstring arg = argv[i];
+    if (StartsWithNoCase(arg, L"ef2://"))
     {
-      if (strstr(__argv[i], "ef2://websocket"))
+      if (StartsWithNoCase(arg, L"ef2://websocket"))
       {
-        Websocket websocker(atol(__argv[i] + 16));
+        Websocket websocker(arg.size() > 16 ? _wtol(arg.c_str() + 16) : 0);
+        return 0;
       }
-      else
-        Code::ef2Protocol(__argv[i]);
-      return 0;
+      UseCrispDialogs();
+      return Code::ef2Protocol(ef2::Narrow(arg));
     }
-    else if (strstr(__argv[i], ".ef2"))
+    if (EndsWithNoCase(arg, L".ef2") || ef2::FileExistsNonEmpty(arg))
     {
-      Code::ef2File(__argv[i]);
-      return 0;
+      UseCrispDialogs();
+      return Code::ef2File(arg);
     }
   }
 

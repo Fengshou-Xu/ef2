@@ -28,10 +28,12 @@ public:
         BOOL state = RegQuery();
         HKEY hKey, hKey1, hKey2, hKey3;
         LPTSTR Error = 0;
-        TCHAR szCurPath[MAX_PATH];
-        ZeroMemory(szCurPath, MAX_PATH);
-        GetModuleFileName(NULL, szCurPath, MAX_PATH);
-        _tcscat(szCurPath, TEXT(" \"%1\""));
+        /* 命令行形如 "X:\path\ef2.exe" "%1"，路径加引号以免目录带空格时被截断 */
+        TCHAR szExePath[MAX_PATH];
+        TCHAR szCurPath[MAX_PATH + 16];
+        ZeroMemory(szExePath, sizeof(szExePath));
+        GetModuleFileName(NULL, szExePath, MAX_PATH - 1);
+        _stprintf_s(szCurPath, MAX_PATH + 16, TEXT("\"%s\" \"%%1\""), szExePath);
 
         if (state)
         {
@@ -48,6 +50,7 @@ public:
             {
                 return false;
             }
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
             return true;
         }
         else
@@ -144,6 +147,7 @@ public:
             {
                 return false;
             }
+            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
             return true;
         }
     };

@@ -5,4 +5,5 @@
 *.pdb
 *.obj
 *.res
+*.log
 ef2.*

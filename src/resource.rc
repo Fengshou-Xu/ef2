@@ -6,8 +6,8 @@ IDI_MYICON ICON "IDI_MYICON.ico"
 1 24 "ef2.manifest"
 
 1 VERSIONINFO
-FILEVERSION     1,1,0,0
-PRODUCTVERSION  1,1,0,0
+FILEVERSION     1,1,1,0
+PRODUCTVERSION  1,1,1,0
 BEGIN
   BLOCK "StringFileInfo"
   BEGIN
@@ -15,12 +15,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "Fengshou-Xu (fork of MotooriKashin/ef2)"
       VALUE "FileDescription", "IDM EF2辅助工具（修改版）"
-      VALUE "FileVersion", "1.1.0"
+      VALUE "FileVersion", "1.1.1"
       VALUE "InternalName", "ef2.exe"
       VALUE "LegalCopyright", "MIT License. Original work (c) 2021 MotooriKashin."
       VALUE "OriginalFilename", "ef2.exe"
       VALUE "ProductName", "IDM EF2 Helper (Fengshou-Xu fork)"
-      VALUE "ProductVersion", "1.1.0"
+      VALUE "ProductVersion", "1.1.1"
     END
   END
   BLOCK "VarFileInfo"

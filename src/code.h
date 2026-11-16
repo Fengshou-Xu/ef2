@@ -363,6 +363,7 @@ namespace ef2
 
         bool subdir = true;              // 下载到与 ef2 文件同名的子目录
         bool skipExisting = true;        // 目标文件已存在则不重复下载
+        bool keepNames = true;           // IDM 询问「是否按服务器的文件类型改名」时自动答否
         int askAbove = kDefaultAskAbove; // 任务数超过该值时先询问；0 = 从不询问
 
         /** ef2.exe 同目录下的 ef2.ini */
@@ -388,6 +389,7 @@ namespace ef2
             const std::wstring ini = IniPath();
             s.subdir = GetPrivateProfileIntW(L"ef2", L"subdir", 1, ini.c_str()) != 0;
             s.skipExisting = GetPrivateProfileIntW(L"ef2", L"skip_existing", 1, ini.c_str()) != 0;
+            s.keepNames = GetPrivateProfileIntW(L"ef2", L"keep_names", 1, ini.c_str()) != 0;
             s.askAbove = ClampAskAbove((int)GetPrivateProfileIntW(L"ef2", L"ask_above", kDefaultAskAbove, ini.c_str()));
             return s;
         }
@@ -472,6 +474,162 @@ namespace ef2
     inline void ReportIdmUnavailable(HRESULT hr)
     {
         MessageBoxText(L"拉起IDM失败！未找到IDM的COM组件，请确认已安装 Internet Download Manager。\n错误码：" + HresultText(hr), MB_ICONWARNING);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* IDM 的「文件类型与文件名不符」询问                                   */
+    /* ------------------------------------------------------------------ */
+
+    /*
+     * 服务器声明的类型和文件名的拓展名对不上时，IDM 会弹窗问「是否改用服务器提供的类型保存」，
+     * 静默标志也拦不住。B站的音频流正是如此：文件名是 xxx.m4a，服务器却说它是 video/mp4。
+     * 答「是」会把音频存成 .mp4，和同名的视频文件撞名；不答下载就一直卡着。
+     * 所以把任务发给 IDM 之后再守一小会儿，替用户对这类询问答「否」，保留 ef2 里写的文件名。
+     */
+
+    struct SentFile
+    {
+        std::wstring name; // 发给 IDM 的文件名
+        std::wstring dir;  // 保存目录，可能为空
+    };
+
+    inline std::wstring WindowText(HWND hwnd)
+    {
+        const int len = GetWindowTextLengthW(hwnd);
+        if (len <= 0)
+            return std::wstring();
+        std::wstring text(len + 1, L'\0');
+        text.resize(GetWindowTextW(hwnd, &text[0], len + 1));
+        return text;
+    }
+
+    inline bool IsIdmWindow(HWND hwnd)
+    {
+        DWORD pid = 0;
+        GetWindowThreadProcessId(hwnd, &pid);
+        HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if (!process)
+            return false;
+        wchar_t path[1024] = {0};
+        DWORD size = 1023;
+        const bool ok = QueryFullProcessImageNameW(process, 0, path, &size) != 0;
+        CloseHandle(process);
+        if (!ok)
+            return false;
+        const wchar_t *base = wcsrchr(path, L'\\');
+        return _wcsicmp(base ? base + 1 : path, L"IDMan.exe") == 0;
+    }
+
+    inline BOOL CALLBACK CollectStaticText(HWND child, LPARAM param)
+    {
+        wchar_t cls[32] = {0};
+        GetClassNameW(child, cls, 31);
+        if (_wcsicmp(cls, L"Static") == 0)
+            *reinterpret_cast<std::wstring *>(param) += WindowText(child) + L"\n";
+        return TRUE;
+    }
+
+    /** 文字里是否提到了一个 MIME 类型（video/mp4 之类）。只认这种询问，别的是/否对话框一概不碰 */
+    inline bool MentionsMimeType(const std::wstring &text)
+    {
+        if (text.find(L"://") != std::wstring::npos)
+            return false; // 带网址的对话框不是我们要找的
+        std::wstring lower(text);
+        for (wchar_t &c : lower)
+            if (c >= L'A' && c <= L'Z')
+                c = (wchar_t)(c - L'A' + L'a');
+        static const wchar_t *const kinds[] = {L"video/", L"audio/", L"application/", L"image/", L"text/"};
+        for (const wchar_t *kind : kinds)
+        {
+            const size_t pos = lower.find(kind);
+            if (pos == std::wstring::npos)
+                continue;
+            const size_t after = pos + wcslen(kind);
+            const bool cleanStart = pos == 0 || !(lower[pos - 1] >= L'a' && lower[pos - 1] <= L'z');
+            const bool hasSubtype = after < lower.size() &&
+                                    ((lower[after] >= L'a' && lower[after] <= L'z') || (lower[after] >= L'0' && lower[after] <= L'9'));
+            if (cleanStart && hasSubtype)
+                return true;
+        }
+        return false;
+    }
+
+    struct PromptScan
+    {
+        std::vector<SentFile> *pending; // 还可能弹出询问的文件
+        std::vector<HWND> *answered;    // 已经答过的对话框，避免在它关闭前重复点击
+    };
+
+    inline BOOL CALLBACK ScanIdmWindow(HWND hwnd, LPARAM param)
+    {
+        PromptScan *scan = reinterpret_cast<PromptScan *>(param);
+        std::vector<SentFile> &pending = *scan->pending;
+        if (pending.empty())
+            return FALSE;
+        if (!IsWindowVisible(hwnd))
+            return TRUE;
+        wchar_t cls[32] = {0};
+        GetClassNameW(hwnd, cls, 31);
+        if (wcscmp(cls, L"#32770") != 0 || !IsIdmWindow(hwnd))
+            return TRUE;
+        const std::wstring title = WindowText(hwnd);
+
+        // 进度窗口的标题是「NN% 文件名」：已经在传数据，这个文件不会再有询问
+        size_t digits = 0;
+        while (digits < title.size() && title[digits] >= L'0' && title[digits] <= L'9')
+            ++digits;
+        if (digits > 0 && title.compare(digits, 2, L"% ") == 0)
+        {
+            const std::wstring name = title.substr(digits + 2);
+            for (size_t i = pending.size(); i-- > 0;)
+                if (pending[i].name == name)
+                    pending.erase(pending.begin() + i);
+            return TRUE;
+        }
+
+        // 询问框：标题就是 IDM 的名字，只有「是」「否」两个按钮，正文同时提到我们的文件名和一个 MIME 类型
+        if (title != L"Internet Download Manager" || !GetDlgItem(hwnd, IDYES) || !GetDlgItem(hwnd, IDNO))
+            return TRUE;
+        for (HWND done : *scan->answered)
+            if (done == hwnd)
+                return TRUE;
+        std::wstring text;
+        EnumChildWindows(hwnd, CollectStaticText, (LPARAM)&text);
+        if (!MentionsMimeType(text))
+            return TRUE;
+        for (size_t i = 0; i < pending.size(); ++i)
+        {
+            if (text.find(pending[i].name) == std::wstring::npos)
+                continue;
+            PostMessageW(hwnd, WM_COMMAND, MAKEWPARAM(IDNO, BN_CLICKED), (LPARAM)GetDlgItem(hwnd, IDNO));
+            scan->answered->push_back(hwnd);
+            pending.erase(pending.begin() + i);
+            break;
+        }
+        return TRUE;
+    }
+
+    /**
+     * 守着刚发给 IDM 的文件，直到每个文件都已答过询问、开始传数据或已下载完成；最多等 timeoutMs。
+     * 超时后还没弹出的询问就只能由用户自己回答了。
+     */
+    inline void KeepFileNames(std::vector<SentFile> pending, DWORD timeoutMs = 60000)
+    {
+        std::vector<HWND> answered;
+        PromptScan scan = {&pending, &answered};
+        const DWORD start = GetTickCount();
+        while (GetTickCount() - start < timeoutMs)
+        {
+            for (size_t i = pending.size(); i-- > 0;)
+                if (!pending[i].dir.empty() && FileExistsNonEmpty(pending[i].dir + L"\\" + pending[i].name))
+                    pending.erase(pending.begin() + i);
+            if (pending.empty())
+                break;
+            EnumWindows(ScanIdmWindow, (LPARAM)&scan);
+            if (pending.empty())
+                break;
+            Sleep(60);
+        }
     }
 
     /* ------------------------------------------------------------------ */
@@ -604,16 +762,26 @@ namespace ef2
 
         size_t sent = 0;
         HRESULT lastError = S_OK;
+        std::vector<SentFile> named;
         for (const Job &job : jobs)
         {
             const HRESULT hr = idm.Send(*job.task, job.dir, flags);
-            if (SUCCEEDED(hr))
-                ++sent;
-            else
+            if (FAILED(hr))
+            {
                 lastError = hr;
+                continue;
+            }
+            ++sent;
+            if (!job.task->fileName.empty())
+            {
+                const SentFile file = {job.task->fileName, job.dir};
+                named.push_back(file);
+            }
         }
         if (sent == 0 && createdTarget)
             RemoveDirectoryW(target.c_str()); // 只会删掉空目录
+        if (settings.keepNames && !(flags & kQueueOnly))
+            KeepFileNames(named);
 
         if (sent < jobs.size())
         {
@@ -700,6 +868,11 @@ namespace ef2
         }
         if ((flags & kQueueOnly) && !(flags & kSilent))
             MessageBoxText(L"已添加到下载队列，需要开始下载时请到IDM点击开始队列！", MB_ICONINFORMATION);
+        if (flags == kSilent && !task.fileName.empty() && Settings::Load().keepNames)
+        {
+            const SentFile file = {task.fileName, ResolveDir(std::wstring(), task.filePath)};
+            KeepFileNames(std::vector<SentFile>(1, file));
+        }
         return 0;
     }
 }
